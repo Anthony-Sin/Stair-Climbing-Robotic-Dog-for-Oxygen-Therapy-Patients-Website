@@ -1,0 +1,1061 @@
+/* styles.css
+ *
+ * Pitch deck: a vertical scroll-snap deck of full-height slides
+ * (Problem → Solution & technology ×3 → Live demo → Progress & results ×2 →
+ * Real-world potential → Team), following the "blueprint / paper sheet"
+ * aesthetic. Colors come from CSS custom properties set by js/palette.js so the
+ * DOM chrome and the three.js scenes never disagree about the active theme.
+ *
+ * Two WebGL scenes: the shared Solution stage (js/hero.js, host #hero-stage,
+ * pinned via sticky while its 3 step-sections scroll) and the demo viewer
+ * (js/main.js). Everything else — section content + nav + reveals — is DOM,
+ * injected/driven by js/deck.js.
+ */
+
+:root {
+	--backdrop: #1b1b18;
+	--sheet: #d6d2ca;
+	--sheet-border: rgba(0, 0, 0, .25);
+	--ink: #2f2c28;
+	--headline: #262320;
+
+	--font-display: 'Segoe UI', Inter, system-ui, -apple-system, sans-serif;
+	--font-mono: 'Cascadia Mono', 'JetBrains Mono', Consolas, monospace;
+
+	--sheet-margin: 14px;
+	--sheet-radius: 22px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+	margin: 0;
+	padding: 0;
+	width: 100%;
+	height: 100%;
+	background: var(--backdrop);
+}
+
+body {
+	font-family: var(--font-display);
+	color: var(--ink);
+	overflow: hidden; /* the #deck scroll container owns scrolling */
+}
+
+button { font: inherit; color: inherit; }
+
+#backdrop {
+	position: fixed;
+	inset: 0;
+	background: var(--backdrop);
+	transition: background 200ms ease;
+	z-index: 0;
+}
+
+/* =====================================================================
+   Scroll-snap deck
+   ===================================================================== */
+
+#deck {
+	position: relative;
+	z-index: 1;
+	height: 100dvh;
+	overflow-y: auto;
+	overflow-x: hidden;
+	scroll-snap-type: y mandatory;
+	scroll-behavior: smooth;
+	scrollbar-width: none;
+}
+
+#deck::-webkit-scrollbar { display: none; }
+
+.slide {
+	position: relative;
+	min-height: 100dvh;
+	scroll-snap-align: start;
+	scroll-snap-stop: always;
+}
+
+/* Content + solution-step slides frame their content in a paper sheet.
+   max-height caps them at one viewport: without it, an oversized visual (e.g.
+   an aspect-ratio photo block) can inflate .slide past 100dvh and push its
+   lower half below the fold, unreachable by normal scroll-snap navigation. */
+.slide.content,
+.slide.sol-step {
+	display: flex;
+	padding: var(--sheet-margin);
+	max-height: 100dvh;
+}
+
+/* =====================================================================
+   Consistent fixed nav rail (same place on every slide)
+   ===================================================================== */
+
+#deck-nav {
+	position: fixed;
+	right: clamp(10px, 1.4vw, 20px);
+	top: 50%;
+	transform: translateY(-50%);
+	z-index: 40;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 10px;
+}
+
+.nav-arrow {
+	width: 30px;
+	height: 30px;
+	display: grid;
+	place-items: center;
+	border-radius: 50%;
+	border: 1px solid var(--sheet-border);
+	background: color-mix(in srgb, var(--sheet) 70%, transparent);
+	backdrop-filter: blur(3px);
+	cursor: pointer;
+	transition: background 130ms ease, transform 130ms ease;
+}
+
+.nav-arrow svg { width: 16px; height: 16px; fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.nav-arrow:hover { background: var(--ink); }
+.nav-arrow:hover svg { stroke: var(--sheet); }
+.nav-arrow:active { transform: scale(0.92); }
+
+#nav-dots {
+	display: flex;
+	flex-direction: column;
+	gap: 11px;
+	padding: 4px 0;
+}
+
+.nav-dot {
+	position: relative;
+	width: 11px;
+	height: 11px;
+	padding: 0;
+	border-radius: 50%;
+	border: 1.5px solid var(--ink);
+	background: transparent;
+	opacity: 0.5;
+	cursor: pointer;
+	transition: opacity 130ms ease, background 130ms ease, transform 130ms ease;
+}
+
+.nav-dot:hover { opacity: 0.9; transform: scale(1.15); }
+
+.nav-dot.active {
+	background: var(--ink);
+	opacity: 1;
+}
+
+/* Label appears to the LEFT on hover/active (consistent, doesn't shift layout) */
+.nav-dot-label {
+	position: absolute;
+	right: 20px;
+	top: 50%;
+	transform: translateY(-50%) translateX(6px);
+	white-space: nowrap;
+	font-family: var(--font-mono);
+	font-size: 11px;
+	padding: 3px 8px;
+	border-radius: 6px;
+	background: var(--ink);
+	color: var(--sheet);
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 130ms ease, transform 130ms ease;
+}
+
+.nav-dot:hover .nav-dot-label,
+.nav-dot.active .nav-dot-label { opacity: 0.92; transform: translateY(-50%) translateX(0); }
+
+/* =====================================================================
+   Content slides: paper sheet with a visual (left) + explainer (right)
+   ===================================================================== */
+
+.slide-sheet {
+	flex: 1;
+	min-height: 0;
+	display: grid;
+	grid-template-columns: 1.5fr 1fr;
+	border-radius: var(--sheet-radius);
+	background: var(--sheet);
+	border: 1px solid var(--sheet-border);
+	overflow: hidden;
+	box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+	transition: background 200ms ease, border-color 200ms ease;
+}
+
+.slide-visual {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: clamp(16px, 3vw, 44px);
+	overflow: hidden;
+}
+
+.slide-copy {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	gap: clamp(10px, 1.2vh, 16px);
+	padding: clamp(16px, 1.6vw, 24px);
+	border-left: 1px solid var(--sheet-border);
+}
+
+.slide-eyebrow {
+	font-family: var(--font-mono);
+	font-size: 11px;
+	letter-spacing: 0.16em;
+	text-transform: uppercase;
+	color: var(--ink);
+	opacity: 0.6;
+}
+
+.slide-title {
+	margin: 0;
+	font-family: var(--font-display);
+	font-weight: 800;
+	font-size: clamp(24px, 2.6vw, 38px);
+	line-height: 1.25;
+	letter-spacing: normal;
+	color: var(--headline);
+	overflow-wrap: break-word;
+	word-break: break-word;
+	text-wrap: balance;
+}
+
+.slide-body { display: contents; }
+
+/* =====================================================================
+   Text-effect reveals (driven by .in on the section, added by deck.js)
+   ===================================================================== */
+
+.slide-eyebrow,
+.slide-title,
+.slide-visual,
+.hero-copy-lead,
+.hero-copy-body,
+.hero-faults,
+.hero-stats,
+.hero-tags,
+.sol-panel > * {
+	opacity: 0;
+	transform: translateY(20px);
+	transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.slide.in .slide-eyebrow,
+.slide.in .slide-title,
+.slide.in .slide-visual,
+.slide.in .hero-copy-lead,
+.slide.in .hero-copy-body,
+.slide.in .hero-faults,
+.slide.in .hero-stats,
+.slide.in .hero-tags,
+.slide.in .sol-panel > * {
+	opacity: 1;
+	transform: none;
+}
+
+/* stagger */
+.slide.in .slide-eyebrow { transition-delay: 0.04s; }
+.slide.in .slide-title   { transition-delay: 0.10s; }
+.slide.in .slide-visual  { transition-delay: 0.16s; }
+.slide.in .hero-copy-lead { transition-delay: 0.18s; }
+.slide.in .hero-copy-body { transition-delay: 0.26s; }
+.slide.in .hero-faults   { transition-delay: 0.30s; }
+.slide.in .hero-stats    { transition-delay: 0.34s; }
+.slide.in .hero-tags     { transition-delay: 0.42s; }
+.slide.in .sol-panel > :nth-child(2) { transition-delay: 0.08s; }
+.slide.in .sol-panel > :nth-child(3) { transition-delay: 0.16s; }
+.slide.in .sol-panel > :nth-child(4) { transition-delay: 0.24s; }
+.slide.in .sol-panel > :nth-child(5) { transition-delay: 0.32s; }
+
+@media (prefers-reduced-motion: reduce) {
+	.slide-eyebrow, .slide-title, .slide-visual, .hero-copy-lead, .hero-copy-body,
+	.hero-faults, .hero-stats, .hero-tags, .sol-panel > * { opacity: 1; transform: none; transition: none; }
+}
+
+/* =====================================================================
+   Content visuals (native SVG: illustration / charts)
+   ===================================================================== */
+
+.slide-visual svg { width: 100%; height: auto; max-height: 100%; display: block; overflow: visible; }
+
+.hero-art { width: 100%; max-width: 560px; color: var(--ink); }
+
+/* Opening / title visual: two Isaac renders leaning outward like a box's open
+   flaps, with the real-hardware shot lying flat as the box beneath them
+   (sketch reference: a V of two tilted flaps sitting on a rectangle). White
+   mats + drop shadow read as printed photos on the paper sheet, in either
+   theme. */
+.hero-photos {
+	position: relative;
+	height: 100%;
+	width: auto;
+	max-width: 94%;
+	margin: 0 auto;
+	aspect-ratio: 4 / 3.75;
+}
+.hero-photos figure {
+	position: absolute;
+	margin: 0;
+	padding: 6px;
+	background: #f6f4ef;
+	border: 1px solid rgba(0, 0, 0, 0.14);
+	border-radius: 12px;
+	box-shadow: 0 18px 40px rgba(0, 0, 0, 0.34);
+}
+.hero-photos figure img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 7px; }
+/* The two Isaac renders are the "flaps" — tall cards anchored into the
+   top-left / top-right corners (not bunched in the middle), tilted outward so
+   their bottom tips still reach the top edge of the real-hardware box below. */
+.hp-back, .hp-front { width: 36%; aspect-ratio: 3 / 4; top: 10.8%; transform-origin: bottom center; }
+.hp-back  { left: 10%; transform: rotate(-26deg); z-index: 2; }
+.hp-front { right: 10%; transform: rotate(26deg); z-index: 3; }
+/* Real-hardware polaroid is the BOX — flat and spanning corner-to-corner at
+   the base. It sits forward of the two leaning flaps (highest z-index): it's
+   proof the thing is real hardware, not a render, so it shouldn't read as
+   tucked behind them. */
+.hp-real  { width: 84%; height: 37%; left: 8%; bottom: 2%; transform: rotate(0deg); z-index: 4; }
+.hp-real img { height: 100%; }
+.hp-real figcaption { position: absolute; left: 0; right: 0; bottom: -20px; text-align: center; font-family: var(--font-mono); font-size: 10px; line-height: 1.2; color: var(--ink); opacity: 0.78; }
+.hero-photos-cap {
+	position: absolute;
+	right: 0;
+	bottom: 0;
+	max-width: 40%;
+	text-align: right;
+	font-family: var(--font-mono);
+	font-size: 11px;
+	line-height: 1.35;
+	color: var(--ink);
+	opacity: 0.62;
+	z-index: 3;
+}
+
+.hero-charts {
+	display: flex;
+	flex-direction: column;
+	gap: clamp(10px, 1.6vh, 18px);
+	width: 100%;
+	max-width: 560px;
+}
+
+.hero-charts.cols-2 {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	align-items: start;
+	max-width: 660px;
+}
+
+.hero-chart {
+	border: 1px solid var(--sheet-border);
+	border-radius: 14px;
+	background: color-mix(in srgb, var(--sheet) 62%, transparent);
+	padding: 12px 14px 10px;
+	color: var(--ink);
+}
+
+.hero-chart-title {
+	font-family: var(--font-mono);
+	font-size: 11.5px;
+	font-weight: 700;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var(--headline);
+	opacity: 0.92;
+	margin: 0 0 6px;
+}
+
+.hero-chart svg { width: 100%; height: auto; }
+
+.ch-frame { fill: none; stroke: currentColor; stroke-width: 1; opacity: 0.32; }
+.ch-axis  { fill: none; stroke: currentColor; stroke-width: 1.2; opacity: 0.55; stroke-linecap: round; }
+.ch-base  { fill: none; stroke: currentColor; stroke-width: 1.2; stroke-dasharray: 4 3; opacity: 0.5; }
+.ch-target { fill: none; stroke: #e5484d; stroke-width: 1.3; stroke-dasharray: 5 3; opacity: 0.85; }
+.ch-line  { fill: none; stroke-width: 2.4; stroke-linejoin: round; stroke-linecap: round; }
+.ch-area  { opacity: 0.12; }
+.ch-dot   { stroke: var(--sheet); stroke-width: 1.4; }
+.ch-tick  { fill: currentColor; font-family: var(--font-mono); font-size: 10px; font-weight: 600; opacity: 0.72; }
+.ch-grid  { fill: none; stroke: currentColor; stroke-width: 0.7; opacity: 0.13; }
+.ch-axlbl { fill: currentColor; font-family: var(--font-mono); font-size: 9px; opacity: 0.5; text-transform: uppercase; letter-spacing: 0.05em; }
+.ch-val   { fill: currentColor; font-family: var(--font-mono); font-size: 10px; font-weight: 700; }
+.ch-note  { fill: currentColor; font-family: var(--font-mono); font-size: 9px; opacity: 0.55; }
+.ch-bar-reached { fill: #0e9b8e; }
+.ch-bar-partial { fill: #c07d3c; }
+.ch-bar-none    { fill: currentColor; opacity: 0.22; }
+.ch-bar-slow    { fill: #c07d3c; opacity: 0.5; }
+.ch-trend       { fill: none; stroke: #b0552f; stroke-width: 2.4; stroke-linejoin: round; stroke-linecap: round; }
+
+/* Sweep visual: the two charts + a real "it topples past code-max" fall clip */
+.sweep-visual { display: flex; flex-direction: column; gap: clamp(10px, 1.6vh, 18px); width: 100%; max-width: 660px; }
+.sweep-fall { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.sweep-fall-frame {
+	position: relative; width: 100%; aspect-ratio: 16 / 9; max-height: 190px;
+	border-radius: 12px; border: 1.5px solid var(--ink); overflow: hidden;
+	background: #12110f; box-shadow: 0 10px 24px rgba(0, 0, 0, 0.14);
+}
+.sweep-fall-frame video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.sweep-fall figcaption { font-family: var(--font-mono); font-size: 11.5px; line-height: 1.4; color: var(--ink); opacity: 0.66; }
+
+/* =====================================================================
+   Content copy blocks
+   ===================================================================== */
+
+.hero-copy-lead {
+	margin: 0;
+	font-family: var(--font-display);
+	font-size: clamp(13px, 1.3vw, 15px);
+	font-weight: 700;
+	line-height: 1.35;
+	color: var(--headline);
+}
+
+.hero-copy-body {
+	margin: 0;
+	font-size: 14px;
+	line-height: 1.62;
+	color: var(--ink);
+	opacity: 0.9;
+}
+
+.hero-stats {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 8px;
+	margin-top: 2px;
+}
+
+.hero-stat {
+	border: 1px solid var(--sheet-border);
+	border-radius: 11px;
+	padding: 10px 10px 9px;
+	background: color-mix(in srgb, var(--sheet) 55%, transparent);
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.hero-stat-v { font-family: var(--font-display); font-size: clamp(17px, 1.8vw, 22px); font-weight: 800; line-height: 1; letter-spacing: -0.01em; color: var(--headline); }
+.hero-stat-l { font-family: var(--font-mono); font-size: 10px; line-height: 1.3; color: var(--ink); opacity: 0.62; }
+
+.hero-tags { display: flex; flex-wrap: wrap; gap: 7px; }
+.hero-tag { font-family: var(--font-mono); font-size: 11px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--ink); color: var(--ink); opacity: 0.82; }
+
+.hero-teamcard {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	gap: 12px;
+	padding: clamp(26px, 3vw, 40px) clamp(24px, 3vw, 38px) clamp(22px, 2.6vw, 32px);
+	border: 1px solid var(--sheet-border);
+	border-radius: 22px;
+	background: color-mix(in srgb, var(--sheet) 78%, transparent);
+	box-shadow: 0 22px 50px rgba(0, 0, 0, 0.22);
+	max-width: 380px;
+	overflow: hidden;
+}
+/* Slim accent bar across the top of the card */
+.hero-teamcard::before {
+	content: '';
+	position: absolute;
+	top: 0; left: 0; right: 0;
+	height: 5px;
+	background: linear-gradient(90deg, #0e9b8e, #c07d3c 55%, #b0552f);
+}
+
+/* Gradient ring around the avatar */
+.hero-teamcard .tc-avatar {
+	width: 148px;
+	height: 148px;
+	border-radius: 50%;
+	padding: 4px;
+	background: linear-gradient(140deg, #0e9b8e, #c07d3c 60%, #b0552f);
+	box-shadow: 0 10px 26px rgba(0, 0, 0, 0.24);
+}
+.hero-teamcard .tc-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 3px solid var(--sheet); display: block; }
+
+.hero-teamcard .tc-name { margin-top: 2px; font-family: var(--font-display); font-size: clamp(24px, 2.5vw, 32px); font-weight: 800; letter-spacing: -0.015em; line-height: 1.05; color: var(--headline); }
+.hero-teamcard .tc-role { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink); opacity: 0.6; }
+.hero-teamcard .tc-rule { width: 46px; height: 3px; border-radius: 2px; background: #0e9b8e; opacity: 0.8; margin: 2px 0; }
+.hero-teamcard .tc-cred { font-family: var(--font-display); font-size: 13.5px; line-height: 1.5; color: var(--ink); opacity: 0.86; max-width: 26ch; }
+.hero-teamcard .tc-tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 4px; }
+.hero-teamcard .tc-tags span { font-family: var(--font-mono); font-size: 10.5px; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--sheet-border); background: color-mix(in srgb, var(--sheet) 55%, transparent); color: var(--ink); opacity: 0.82; }
+
+/* =====================================================================
+   Solution & technology: pinned (sticky) 3D stage + 3 scrolling steps
+   ===================================================================== */
+
+#s-solution {
+	position: relative;
+	display: grid;
+	grid-template-columns: 1.32fr 1.12fr;
+}
+
+.sol-stage-sticky {
+	grid-column: 1;
+	position: sticky;
+	top: 0;
+	height: 100dvh;
+	align-self: start;
+	padding: var(--sheet-margin);
+}
+
+.sol-steps { grid-column: 2; }
+
+.sol-step {
+	align-items: center;
+	justify-content: center;
+}
+
+/* All three step cards share one footprint (equal width + min-height) so
+   Architecture / Walking / Climbing read as the same size, and content is
+   vertically centred so the shorter Architecture card breathes instead of
+   sitting cramped at the top. Wider + a touch shorter than before. */
+/* The step card is now the SAME height as the pinned 3D render on the left
+   (full slide height minus the sheet margin), so it reads as an equal-size
+   panel — which buys the room to scale the title / diagram / body up. */
+.sol-panel {
+	width: 100%;
+	max-width: 640px;
+	height: calc(100dvh - 2 * var(--sheet-margin));
+	min-height: min(88vh, 640px);
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	gap: clamp(12px, 1.6vh, 22px);
+	padding: clamp(20px, 2vw, 32px);
+	border-radius: var(--sheet-radius);
+	background: color-mix(in srgb, var(--sheet) 86%, transparent);
+	border: 1px solid var(--sheet-border);
+	backdrop-filter: blur(4px);
+	box-shadow: 0 18px 44px rgba(0, 0, 0, 0.2);
+}
+
+.sol-panel .slide-title { font-size: clamp(20px, 2vw, 30px); line-height: 1.15; }
+
+.sol-diagram {
+	color: var(--ink);
+	border: 1px solid var(--sheet-border);
+	border-radius: 12px;
+	padding: 14px 18px;
+	display: flex;
+	justify-content: center;
+	background: color-mix(in srgb, var(--sheet) 60%, transparent);
+}
+
+/* Bigger, more legible schematics (was capped tiny at ~150px): fill the panel
+   width and scale up so the "policy π / MLP / proprioception / feels each riser"
+   labels read clearly. */
+.sol-diagram svg { width: 100%; max-width: 100%; height: auto; max-height: clamp(150px, 24vh, 220px); display: block; }
+
+.sol-body { margin: 0; font-size: clamp(13px, 1.25vw, 15px); line-height: 1.5; color: var(--ink); opacity: 0.9; }
+
+.sol-clip { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+
+.sol-clip-frame {
+	position: relative;
+	width: 100%;
+	aspect-ratio: 16 / 9;
+	max-height: 150px;
+	border-radius: 12px;
+	border: 1.5px solid var(--ink);
+	overflow: hidden;
+	background: #12110f;
+	box-shadow: 0 10px 24px rgba(0, 0, 0, 0.14);
+}
+
+.sol-clip-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.sol-clip figcaption { font-family: var(--font-mono); font-size: 12px; line-height: 1.4; color: var(--ink); opacity: 0.7; text-align: center; }
+
+/* Diagram (dg-*) primitives — shared by the policy schematics */
+.dg-box, .dg-ln, .dg-ah { fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.dg-dock { fill: none; stroke: currentColor; stroke-width: 1.3; stroke-dasharray: 5 3; opacity: 0.7; }
+.dg-t { fill: currentColor; font-family: var(--font-mono); font-size: 11px; }
+.dg-c { fill: currentColor; font-family: var(--font-mono); font-size: 10px; opacity: 0.6; }
+
+/* =====================================================================
+   3D stage chrome (host #hero-stage, inside the sticky column)
+   ===================================================================== */
+
+#hero-stage {
+	position: relative;
+	width: 100%;
+	height: 100%;
+	border-radius: var(--sheet-radius);
+	background: var(--sheet);
+	border: 1px solid var(--sheet-border);
+	overflow: hidden;
+	box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+}
+
+#hero-stage canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+
+#hero-leaders { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 4; overflow: visible; transition: opacity 240ms ease; }
+.hero-leader { fill: none; stroke: var(--ink); stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; opacity: 0.82; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 520ms ease; }
+.hero-leader.drawn { stroke-dashoffset: 0; }
+.hero-leader-dot { fill: var(--ink); stroke: var(--sheet); stroke-width: 1.2; }
+.hero-leader-anchor { fill: var(--ink); }
+
+#hero-callouts { position: absolute; inset: 0; pointer-events: none; z-index: 5; transition: opacity 240ms ease; }
+.hero-callout {
+	position: absolute;
+	transform: translateY(-50%);
+	max-width: clamp(120px, 13vw, 178px);
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+	padding: 8px 12px;
+	border-radius: 9px;
+	background: color-mix(in srgb, var(--sheet) 82%, transparent);
+	border: 1px solid var(--sheet-border);
+	backdrop-filter: blur(2px);
+	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+}
+.hero-callout.side-left { left: clamp(12px, 1.6vw, 24px); text-align: left; }
+.hero-callout.side-right { right: clamp(12px, 1.6vw, 24px); text-align: right; }
+.hero-callout-label { font-family: var(--font-display); font-size: 14px; font-weight: 700; color: var(--headline); line-height: 1.2; }
+.hero-callout-sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink); opacity: 0.62; line-height: 1.25; }
+
+#hero-stage-tag { position: absolute; left: clamp(14px, 1.8vw, 22px); bottom: clamp(12px, 1.8vw, 20px); z-index: 6; font-family: var(--font-mono); font-size: 12px; color: var(--ink); opacity: 0.6; pointer-events: none; }
+
+#hero-zoom { position: absolute; right: clamp(14px, 1.8vw, 22px); bottom: clamp(12px, 1.8vw, 20px); z-index: 6; display: flex; gap: 6px; }
+.hero-zoombtn { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 8px; border: 1px solid var(--ink); background: color-mix(in srgb, var(--sheet) 78%, transparent); cursor: pointer; transition: background 130ms ease; }
+.hero-zoombtn svg { width: 18px; height: 18px; fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: stroke 130ms ease; }
+.hero-zoombtn:hover { background: var(--ink); }
+.hero-zoombtn:hover svg { stroke: var(--sheet); }
+
+/* =====================================================================
+   Per-policy stage FX overlay (#hero-fx, built by js/hero.js)
+   ===================================================================== */
+
+#hero-fx {
+	position: absolute;
+	inset: 0;
+	z-index: 3;
+	pointer-events: none;
+	overflow: hidden;
+	transition: opacity 180ms ease;
+	--fx-scan: #0e9b8e;
+	--fx-feel: #3a7ce5;
+}
+
+.fx-cone, .fx-hud, .fx-feet { display: none; }
+#hero-fx.fx-mode-scan .fx-cone { display: block; }
+#hero-fx.fx-mode-scan .fx-hud-yolo { display: flex; }
+#hero-fx.fx-mode-feel .fx-feet { display: block; }
+#hero-fx.fx-mode-feel .fx-hud-sense { display: flex; }
+.fx-cone.fx-off, .fx-foot.fx-off { display: none !important; }
+
+.fx-cone { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.fx-cone-fill { fill: url(#fxConeGrad); stroke: var(--fx-scan); stroke-width: 1.5; stroke-opacity: 0.5; stroke-linejoin: round; }
+.fx-cone-s0 { stop-color: var(--fx-scan); stop-opacity: 0.4; }
+.fx-cone-s1 { stop-color: var(--fx-scan); stop-opacity: 0; }
+.fx-cone-sweep { stroke: var(--fx-scan); stroke-width: 2.5; stroke-linecap: round; stroke-opacity: 0.9; filter: drop-shadow(0 0 4px var(--fx-scan)); }
+
+.fx-hud { position: absolute; top: 14px; left: 14px; align-items: center; gap: 7px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.03em; padding: 5px 10px; border-radius: 7px; color: #f4f2ee; background: rgba(18, 18, 16, 0.74); backdrop-filter: blur(3px); }
+.fx-hud-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--fx-scan); box-shadow: 0 0 8px 1px var(--fx-scan); animation: fxBlink 1.1s steps(1, end) infinite; }
+.fx-hud-sense .fx-hud-dot { background: var(--fx-feel); box-shadow: 0 0 8px 1px var(--fx-feel); }
+@keyframes fxBlink { 0%, 60% { opacity: 1; } 61%, 100% { opacity: 0.2; } }
+.fx-hud-conf { margin-left: 3px; padding-left: 8px; border-left: 1px solid rgba(255, 255, 255, 0.22); color: var(--fx-scan); font-variant-numeric: tabular-nums; }
+
+.fx-feet { position: absolute; inset: 0; }
+.fx-foot { position: absolute; width: 0; height: 0; }
+.fx-foot span { position: absolute; left: 0; top: 0; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; border: 2px solid var(--fx-feel); transform: scale(0.3); opacity: 0; animation: fxFootRipple 1.9s ease-out infinite; }
+.fx-foot span:nth-child(2) { animation-delay: 0.63s; }
+.fx-foot span:nth-child(3) { animation-delay: 1.26s; }
+@keyframes fxFootRipple { 0% { transform: scale(0.3); opacity: 0; } 14% { opacity: 0.8; } 100% { transform: scale(3.6); opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+	.fx-hud-dot, .fx-foot span { animation: none; }
+	.fx-foot span:nth-child(1) { opacity: 0.55; transform: scale(2.4); }
+}
+
+/* =====================================================================
+   Live demo (js/main.js) — #sheet fills the slide; overlay chrome on top
+   ===================================================================== */
+
+#sheet {
+	position: absolute;
+	inset: var(--sheet-margin);
+	border-radius: var(--sheet-radius);
+	background: var(--sheet);
+	border: 1px solid var(--sheet-border);
+	overflow: hidden;
+	box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+	transition: background 200ms ease, border-color 200ms ease;
+}
+
+#canvas-host { position: absolute; inset: 0; }
+#canvas-host canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+
+#ui-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
+
+#headline-block { position: absolute; top: clamp(18px, 3vw, 36px); left: clamp(18px, 3vw, 36px); max-width: 34ch; pointer-events: none; }
+
+#demo-kicker { display: inline-block; font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink); opacity: 0.6; }
+
+/* Animated explanatory captions (fade + slide in when the demo is active) */
+#demo-captions { display: flex; flex-direction: column; gap: 7px; margin: 12px 0 16px; }
+.demo-cap {
+	font-family: var(--font-display);
+	font-size: clamp(15px, 1.5vw, 18px);
+	font-weight: 600;
+	line-height: 1.35;
+	color: var(--headline);
+	opacity: 0;
+	transform: translateX(-14px);
+	transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.demo-cap b { font-weight: 800; }
+.demo-cap b::before { content: '›  '; color: var(--ink); opacity: 0.5; }
+#s-demo.in .demo-cap { opacity: 0.92; transform: none; }
+#s-demo.in .demo-cap[data-cap="follow"] { transition-delay: 0.15s; }
+#s-demo.in .demo-cap[data-cap="climb"] { transition-delay: 0.45s; }
+@media (prefers-reduced-motion: reduce) { .demo-cap { opacity: 0.92; transform: none; transition: none; } }
+
+#phase-buttons { display: flex; gap: 10px; pointer-events: auto; }
+.phase-chip { font-family: var(--font-mono); font-size: 13px; line-height: 1; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--ink); background: transparent; color: var(--ink); cursor: pointer; transition: background 120ms ease, color 120ms ease, opacity 120ms ease; text-transform: lowercase; }
+.phase-chip:hover { opacity: 0.75; }
+.phase-chip[aria-pressed="true"] { background: var(--ink); color: var(--sheet); }
+
+.chip { font-family: var(--font-mono); font-size: 13px; padding: 7px 12px; border-radius: 8px; border: 1px solid var(--ink); background: transparent; color: var(--ink); cursor: pointer; pointer-events: auto; transition: background 120ms ease, color 120ms ease, opacity 120ms ease; white-space: nowrap; }
+.chip:hover { opacity: 0.75; }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--sheet); }
+
+#top-right-chips { position: absolute; top: clamp(18px, 3vw, 36px); right: clamp(18px, 3vw, 36px); display: flex; gap: 8px; pointer-events: none; }
+
+#model-warning.warning-chip { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; background: var(--sheet); opacity: 0.95; cursor: default; }
+
+/* Bottom dock: scrub controls + auto-playing filmstrip */
+#demo-dock { position: absolute; left: 0; right: 0; bottom: clamp(14px, 2.4vw, 26px); display: flex; flex-direction: column; align-items: center; gap: clamp(10px, 1.4vw, 16px); padding: 0 clamp(16px, 3vw, 32px); pointer-events: none; z-index: 12; }
+
+#scrub-bar { display: flex; align-items: center; gap: 10px; max-width: min(560px, 92vw); width: 100%; justify-content: center; pointer-events: none; }
+#time-readout { font-family: var(--font-mono); font-size: 13px; color: var(--ink); white-space: nowrap; }
+#play-toggle { flex: none; }
+
+#scrubber {
+	-webkit-appearance: none; appearance: none;
+	width: 420px; max-width: 46vw; height: 44px; border-radius: 10px;
+	background: repeating-linear-gradient(to right, #6f6c66 0px, #6f6c66 1px, transparent 1px, transparent 7px) center / 100% 40% no-repeat, #1e1d1a;
+	outline: none; cursor: pointer; pointer-events: auto; margin: 0;
+}
+#scrubber:focus-visible { box-shadow: 0 0 0 2px var(--sheet), 0 0 0 4px var(--ink); }
+#scrubber::-webkit-slider-runnable-track { -webkit-appearance: none; appearance: none; height: 100%; background: transparent; border: none; }
+#scrubber::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 4px; height: 22px; border-radius: 2px; background: #e5484d; border: none; margin-top: 0; cursor: pointer; box-shadow: 0 0 0 6px rgba(229, 72, 77, 0.12); }
+#scrubber::-moz-range-track { height: 100%; background: transparent; border: none; }
+#scrubber::-moz-range-thumb { width: 4px; height: 22px; border-radius: 2px; background: #e5484d; border: none; cursor: pointer; box-shadow: 0 0 0 6px rgba(229, 72, 77, 0.12); }
+#scrubber::-moz-range-progress { background: transparent; }
+
+#demo-filmstrip { display: flex; gap: clamp(8px, 1vw, 12px); justify-content: center; align-items: flex-end; flex-wrap: nowrap; max-width: 100%; overflow-x: auto; pointer-events: auto; padding-bottom: 2px; scrollbar-width: none; }
+#demo-filmstrip::-webkit-scrollbar { display: none; }
+
+.film-tile { margin: 0; flex: 0 0 auto; width: clamp(116px, 14vw, 164px); display: flex; flex-direction: column; gap: 5px; cursor: pointer; transition: transform 160ms ease; }
+.film-tile video { width: 100%; aspect-ratio: 2 / 1; object-fit: cover; display: block; border-radius: 10px; border: 1.5px solid var(--ink); background: #12110f; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16); transition: border-color 160ms ease, box-shadow 160ms ease; }
+.film-tile.is-featured video { border-color: #0e9b8e; box-shadow: 0 8px 22px rgba(14, 155, 142, 0.28); }
+.film-tile:hover { transform: translateY(-3px); }
+.film-tile:hover video { border-color: #0e9b8e; }
+.film-tile figcaption { display: flex; flex-direction: column; line-height: 1.2; font-family: var(--font-mono); text-align: center; }
+.film-tile figcaption b { font-size: 12px; font-weight: 700; color: var(--headline); }
+.film-tile figcaption span { font-size: 10px; color: var(--ink); opacity: 0.6; }
+
+/* =====================================================================
+   Live demo (real Isaac footage): LEFT = a gallery of six real rollout clips
+   (flat follow + five rising stair heights) taking most of the width; RIGHT =
+   the OpenCV/YOLO follow HUD + an explainer. The 3D viewer moved to Potential.
+   ===================================================================== */
+.slide.demo-real { display: flex; padding: var(--sheet-margin); max-height: 100dvh; }
+
+.demo-sheet {
+	flex: 1;
+	min-height: 0;
+	display: grid;
+	grid-template-columns: 1.55fr 1fr;
+	border-radius: var(--sheet-radius);
+	background: var(--sheet);
+	border: 1px solid var(--sheet-border);
+	overflow: hidden;
+	box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+}
+
+/* LEFT: the six-clip gallery (most of the slide) */
+.demo-gallery {
+	display: flex;
+	flex-direction: column;
+	gap: clamp(8px, 1.1vh, 14px);
+	padding: clamp(16px, 1.8vw, 26px);
+	border-right: 1px solid var(--sheet-border);
+	background: color-mix(in srgb, var(--sheet) 62%, transparent);
+	min-width: 0;
+}
+.demo-gallery-title { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink); opacity: 0.58; }
+
+.demo-grid {
+	flex: 1;
+	min-height: 0;
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	grid-auto-rows: 1fr;
+	gap: clamp(8px, 1vw, 14px);
+}
+.demo-clip { margin: 0; min-height: 0; display: flex; flex-direction: column; gap: 5px; cursor: pointer; transition: transform 160ms ease; }
+.demo-clip video {
+	width: 100%;
+	flex: 1;
+	min-height: 0;
+	object-fit: cover;
+	border-radius: 10px;
+	border: 1.5px solid var(--ink);
+	background: #12110f;
+	box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16);
+	transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+.demo-clip.is-featured video { border-color: #0e9b8e; box-shadow: 0 8px 22px rgba(14, 155, 142, 0.28); }
+.demo-clip:hover { transform: translateY(-3px); }
+.demo-clip:hover video { border-color: #0e9b8e; }
+.demo-clip figcaption { display: flex; flex-direction: column; line-height: 1.2; font-family: var(--font-mono); text-align: center; }
+.demo-clip figcaption b { font-size: 12px; font-weight: 700; color: var(--headline); }
+.demo-clip figcaption span { font-size: 10px; color: var(--ink); opacity: 0.6; }
+
+/* RIGHT: the OpenCV follow HUD + explanation */
+.demo-side {
+	display: flex;
+	flex-direction: column;
+	gap: clamp(10px, 1.2vh, 16px);
+	padding: clamp(16px, 1.6vw, 24px);
+	min-width: 0;
+}
+.demo-head { display: flex; flex-direction: column; gap: 6px; }
+.demo-head .slide-title { font-size: clamp(20px, 2vw, 30px); line-height: 1.15; }
+
+.demo-opencv { margin: 0; display: flex; flex-direction: column; gap: 7px; }
+.demo-opencv video {
+	width: 100%;
+	aspect-ratio: 16 / 9;
+	object-fit: cover;
+	border-radius: 12px;
+	border: 1.5px solid var(--ink);
+	background: #0d0d0b;
+	box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
+}
+.demo-opencv figcaption { font-family: var(--font-mono); font-size: 11.5px; line-height: 1.4; color: var(--ink); opacity: 0.66; }
+
+.demo-explain { display: flex; flex-direction: column; gap: 11px; }
+.demo-explain p { margin: 0; font-family: var(--font-display); font-size: clamp(13px, 1.25vw, 15px); line-height: 1.5; color: var(--ink); opacity: 0.92; }
+.demo-explain b { font-weight: 700; color: var(--headline); }
+.demo-explain-hint { display: inline-block; margin-top: 2px; font-family: var(--font-mono); font-size: 11.5px; color: #0e9b8e; opacity: 0.9; }
+
+/* =====================================================================
+   Real-world potential: copy (left) + cinematic 3D viewer (right). The
+   viewer (#sheet / #canvas-host / #ui-overlay) moved here from the old demo.
+   ===================================================================== */
+.slide.potential { display: flex; padding: var(--sheet-margin); }
+
+.pot-sheet {
+	flex: 1;
+	min-height: 0;
+	display: grid;
+	grid-template-columns: 1fr 1.28fr;
+	border-radius: var(--sheet-radius);
+	background: var(--sheet);
+	border: 1px solid var(--sheet-border);
+	overflow: hidden;
+	box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+}
+
+.pot-copy { display: flex; flex-direction: column; justify-content: center; gap: 13px; padding: clamp(22px, 2.8vw, 46px); overflow: auto; }
+
+.pot-viewer { position: relative; border-left: 1px solid var(--sheet-border); background: var(--sheet); }
+
+/* In Potential #sheet fills its cell (the base rule absolute-insets it to the
+   whole slide, which only made sense in the old full-bleed demo). */
+.pot-viewer #sheet { position: absolute; inset: 0; border-radius: 0; border: none; box-shadow: none; }
+
+#pot-viewer-cap {
+	position: absolute;
+	left: clamp(14px, 1.6vw, 20px);
+	bottom: clamp(12px, 1.6vw, 18px);
+	z-index: 6;
+	font-family: var(--font-mono);
+	font-size: 12px;
+	color: var(--ink);
+	opacity: 0.6;
+	pointer-events: none;
+}
+
+/* The demo controls main.js still drives are kept in the DOM but hidden here —
+   Potential is a passive, autoplaying cinematic view. */
+.viewer-controls { display: none; }
+
+/* Reset chip (window.__viewer.resetDemo(), also bound to the Home key): a
+   small circular icon button in the stage's top-right corner, styled like
+   #hero-zoom's .hero-zoombtn siblings elsewhere in this deck so the "stage
+   chrome" language stays consistent even though .viewer-controls itself is
+   hidden here (see the rule above). Placed top-right so it never collides
+   with #pot-journey (top-center) or #pot-viewer-cap (bottom-left). */
+#pot-reset {
+	position: absolute;
+	top: clamp(14px, 1.8vw, 22px);
+	right: clamp(14px, 1.8vw, 22px);
+	z-index: 8;
+	width: 34px;
+	height: 34px;
+	display: grid;
+	place-items: center;
+	border-radius: 50%;
+	border: 1px solid var(--ink);
+	background: color-mix(in srgb, var(--sheet) 78%, transparent);
+	color: var(--ink);
+	cursor: pointer;
+	pointer-events: auto;
+	transition: background 130ms ease, color 130ms ease;
+}
+#pot-reset svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+#pot-reset:hover { background: var(--ink); color: var(--sheet); }
+
+/* =====================================================================
+   Emphasis: bold key words in body copy so paragraphs aren't a flat wall of
+   text (the <b> tags come from content.js). Bold reads as a stronger weight
+   in the headline ink rather than just heavier body text.
+   ===================================================================== */
+.hero-copy-body b, .sol-body b, .hero-fault b { font-weight: 700; color: var(--headline); }
+.hero-copy-lead b { font-weight: 800; color: var(--headline); }
+
+/* =====================================================================
+   "What broke → the fix" list (Challenges slide)
+   ===================================================================== */
+.hero-faults { list-style: none; margin: 2px 0 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+.hero-fault {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 7px 10px;
+	border: 1px solid var(--sheet-border);
+	border-left: 3px solid #e5484d;
+	border-radius: 10px;
+	background: color-mix(in srgb, var(--sheet) 55%, transparent);
+}
+.hf-p { font-family: var(--font-display); font-size: 12.5px; font-weight: 600; line-height: 1.3; color: var(--headline); }
+.hf-p::before { content: '\2715\00a0\00a0'; color: #e5484d; font-weight: 800; }
+.hf-f { font-family: var(--font-display); font-size: 11.5px; line-height: 1.35; color: var(--ink); opacity: 0.9; }
+.hf-f::before { content: '\2192\00a0\00a0'; color: #0e9b8e; font-weight: 800; }
+
+/* =====================================================================
+   Challenges slide: hand-authored three.js topple stage (host #topple-stage)
+   ===================================================================== */
+.challenges-visual { padding: var(--sheet-margin); }
+#topple-stage {
+	position: relative;
+	width: 100%;
+	height: 100%;
+	min-height: 320px;
+	border-radius: var(--sheet-radius);
+	background: var(--sheet);
+	border: 1px solid var(--sheet-border);
+	overflow: hidden;
+	box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+}
+#topple-stage canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+#topple-tag { position: absolute; left: clamp(12px, 1.6vw, 18px); bottom: clamp(10px, 1.6vw, 16px); z-index: 4; font-family: var(--font-mono); font-size: 11.5px; color: var(--ink); opacity: 0.58; pointer-events: none; }
+#topple-hud {
+	position: absolute; top: clamp(12px, 1.6vw, 18px); left: clamp(12px, 1.6vw, 18px); z-index: 5;
+	display: flex; align-items: center; gap: 7px;
+	font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase;
+	color: #fff; background: rgba(197, 50, 55, 0.92); padding: 5px 10px; border-radius: 7px;
+	opacity: 0; transform: translateY(-6px); transition: opacity 0.2s ease, transform 0.2s ease; pointer-events: none;
+}
+#topple-hud.on { opacity: 1; transform: none; }
+.topple-hud-dot { width: 7px; height: 7px; border-radius: 50%; background: #fff; box-shadow: 0 0 8px 1px rgba(255,255,255,0.8); animation: toppleBlink 0.6s steps(1, end) infinite; }
+@keyframes toppleBlink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0.25; } }
+#topple-replay {
+	position: absolute; top: clamp(12px, 1.6vw, 18px); right: clamp(12px, 1.6vw, 18px); z-index: 5;
+	display: inline-flex; align-items: center; gap: 6px;
+	font-family: var(--font-mono); font-size: 11.5px; padding: 6px 10px; border-radius: 8px;
+	border: 1px solid var(--ink); background: color-mix(in srgb, var(--sheet) 80%, transparent);
+	color: var(--ink); cursor: pointer; transition: background 130ms ease, color 130ms ease;
+}
+#topple-replay svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+#topple-replay:hover { background: var(--ink); color: var(--sheet); }
+#topple-dust {
+	position: absolute; z-index: 3; width: 10px; height: 10px; margin: -5px 0 0 -5px;
+	border-radius: 50%; border: 2px solid rgba(120, 108, 92, 0.55);
+	opacity: 0; pointer-events: none;
+}
+#topple-dust.burst { animation: toppleDust 0.6s ease-out; }
+@keyframes toppleDust { 0% { transform: scale(0.3); opacity: 0.7; } 100% { transform: scale(7); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .topple-hud-dot { animation: none; } #topple-dust.burst { animation: none; } }
+
+/* =====================================================================
+   Potential slide: "proven sim → the living room" storytelling on the
+   cinematic viewer — a journey track (top) + a warm home-glow vignette.
+   ===================================================================== */
+#pot-journey {
+	position: absolute; top: clamp(14px, 1.8vw, 22px); left: 50%; transform: translateX(-50%); z-index: 7;
+	display: flex; align-items: center; gap: 12px;
+	padding: 7px 15px; border-radius: 999px;
+	background: color-mix(in srgb, var(--sheet) 84%, transparent);
+	border: 1px solid var(--sheet-border);
+	backdrop-filter: blur(4px);
+	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
+	font-family: var(--font-mono); pointer-events: none;
+}
+.pj-node { display: flex; flex-direction: column; line-height: 1.18; font-size: 12.5px; font-weight: 700; color: var(--headline); }
+.pj-node b { font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.75; }
+.pj-node.pj-done b { color: #0e9b8e; opacity: 1; }
+.pj-node.pj-next { text-align: right; }
+.pj-node.pj-next b { color: #c07d3c; opacity: 1; }
+.pj-dot { display: none; }
+.pj-arrow { display: flex; align-items: center; }
+.pj-arrow svg { width: 34px; height: 12px; fill: none; stroke: var(--ink); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; opacity: 0.55; }
+#pot-vignette {
+	position: absolute; inset: 0; z-index: 2; pointer-events: none;
+	background: radial-gradient(125% 95% at 50% 40%, transparent 52%, rgba(70, 45, 20, 0.20) 100%);
+	mix-blend-mode: multiply;
+}
+
+/* =====================================================================
+   Responsive: stack the two-column slides; nav rail moves to the bottom
+   ===================================================================== */
+
+@media (max-width: 860px) {
+
+	.slide-sheet,
+	.demo-sheet,
+	.pot-sheet,
+	#s-solution { grid-template-columns: 1fr; }
+
+	/* Demo: gallery rides above the OpenCV/explainer; keep six tiles as 2 or 3
+	   columns and give the region real height so the clips stay legible. */
+	.demo-gallery { border-right: none; border-bottom: 1px solid var(--sheet-border); min-height: 46dvh; }
+	.demo-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+	.pot-viewer { min-height: 52dvh; border-left: none; border-top: 1px solid var(--sheet-border); }
+
+	/* Challenges: the topple stage rides above the copy with real height. */
+	#topple-stage { min-height: 42dvh; }
+
+	/* On narrow screens the pinned stage can't share a row with the steps; let
+	   the Solution steps stack full-width and the stage ride above each. */
+	.sol-stage-sticky { position: relative; height: 60dvh; grid-column: 1; }
+	.sol-steps { grid-column: 1; }
+	.hero-charts.cols-2 { grid-template-columns: 1fr; }
+
+	.slide-copy { border-left: none; border-top: 1px solid var(--sheet-border); }
+
+	/* Stacked layout: the visual row's width is the definite axis (full sheet
+	   width) instead of height (shared with the copy row below it), so drive
+	   .hero-photos off width again here — the height-driven rule above needs a
+	   tall single-row visual pane, which no longer exists once columns stack. */
+	.hero-photos { width: 100%; height: auto; }
+
+	#hero-leaders, #hero-callouts { display: none; }
+
+	#deck-nav { top: auto; bottom: 10px; left: 50%; right: auto; transform: translateX(-50%); flex-direction: row; }
+	#nav-dots { flex-direction: row; }
+	.nav-dot-label { display: none; }
+	.nav-arrow { transform: rotate(-90deg); }
+}

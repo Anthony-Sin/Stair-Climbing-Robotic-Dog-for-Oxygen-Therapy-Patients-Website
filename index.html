@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+	<title>TASH — Stair-Climbing Robotic Oxygen Carrier — pitch</title>
+	<link rel="stylesheet" href="./styles.css" />
+
+	<!-- No build step: three.js r170 is vendored under vendor/ and mapped here. -->
+	<script type="importmap">
+		{
+			"imports": {
+				"three": "./vendor/three.module.js",
+				"three/addons/": "./vendor/addons/"
+			}
+		}
+	</script>
+</head>
+<body>
+	<!-- Fixed dark frame behind every scroll section. -->
+	<div id="backdrop"></div>
+
+	<!-- Consistent, always-in-the-same-place navigation (built by js/deck.js):
+	     a fixed dot rail with prev/next; scrolling also advances sections. -->
+	<nav id="deck-nav" aria-label="Sections">
+		<button type="button" id="nav-prev" class="nav-arrow" aria-label="Previous section">
+			<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 15l-6-6-6 6" /></svg>
+		</button>
+		<div id="nav-dots" role="tablist"></div>
+		<button type="button" id="nav-next" class="nav-arrow" aria-label="Next section">
+			<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+		</button>
+	</nav>
+
+	<!-- The scroll-snap deck. Each .slide is a full-height snap section. -->
+	<main id="deck">
+
+		<!-- 1 · PROBLEM -->
+		<section id="s-problem" class="slide content" aria-label="Problem">
+			<div class="slide-sheet reveal">
+				<div class="slide-visual" data-visual></div>
+				<div class="slide-copy">
+					<span class="slide-eyebrow"></span>
+					<h2 class="slide-title"></h2>
+					<div class="slide-body" data-copy></div>
+				</div>
+			</div>
+		</section>
+
+		<!-- 2 · SOLUTION & TECHNOLOGY — three step-sections sharing one pinned 3D stage -->
+		<div id="s-solution" class="solution">
+			<div class="sol-stage-sticky">
+				<div id="hero-stage">
+					<!-- hero three.js canvas is inserted here by js/hero.js -->
+					<svg id="hero-leaders" aria-hidden="true"></svg>
+					<div id="hero-callouts"></div>
+					<div id="hero-fx" aria-hidden="true"></div>
+					<div id="hero-stage-tag">unitree go2 · o2 payload</div>
+					<div id="hero-zoom" role="group" aria-label="Zoom">
+						<button type="button" class="hero-zoombtn" id="hero-zoom-out" aria-label="Zoom out"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" /></svg></button>
+						<button type="button" class="hero-zoombtn" id="hero-zoom-reset" aria-label="Reset view"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg></button>
+						<button type="button" class="hero-zoombtn" id="hero-zoom-in" aria-label="Zoom in"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg></button>
+					</div>
+				</div>
+			</div>
+			<div class="sol-steps">
+				<section id="s-arch"  class="slide sol-step" data-policy="architecture" aria-label="System architecture"><div class="sol-panel reveal"></div></section>
+				<section id="s-walk"  class="slide sol-step" data-policy="walking" aria-label="Walking policy"><div class="sol-panel reveal"></div></section>
+				<section id="s-climb" class="slide sol-step" data-policy="blind-rl" aria-label="Blind-RL climb policy"><div class="sol-panel reveal"></div></section>
+			</div>
+		</div>
+
+		<!-- 3 · LIVE DEMO — real Isaac rollout footage. LEFT (most of the width): a
+		     gallery of six real clips (flat follow + five rising stair heights).
+		     RIGHT: the OpenCV/YOLO follow HUD + an explainer of what's happening.
+		     The interactive 3D viewer moved to the Potential slide. -->
+		<section id="s-demo" class="slide demo-real" aria-label="Live demo">
+			<div class="demo-sheet reveal">
+				<div class="demo-gallery" aria-label="Real Isaac rollout clips">
+					<span class="demo-gallery-title">real Isaac rollout · climbing rising stair heights, carrying the O₂</span>
+					<div class="demo-grid">
+						<figure class="demo-clip" data-phase="climb">
+							<video muted loop playsinline preload="none" data-src="./assets/clips/climb_0p120.mp4"></video>
+							<figcaption><b>0.12 m</b><span>4.7″ riser</span></figcaption>
+						</figure>
+						<figure class="demo-clip" data-phase="climb">
+							<video muted loop playsinline preload="none" data-src="./assets/clips/climb_0p130.mp4"></video>
+							<figcaption><b>0.13 m</b><span>5.1″ riser</span></figcaption>
+						</figure>
+						<figure class="demo-clip" data-phase="climb">
+							<video muted loop playsinline preload="none" data-src="./assets/clips/climb_0p140.mp4"></video>
+							<figcaption><b>0.14 m</b><span>5.5″ riser</span></figcaption>
+						</figure>
+						<figure class="demo-clip is-featured" data-phase="climb">
+							<video muted loop playsinline preload="none" data-src="./assets/clips/climb_0p150.mp4"></video>
+							<figcaption><b>0.15 m</b><span>6″ · ADA max</span></figcaption>
+						</figure>
+						<figure class="demo-clip" data-phase="climb">
+							<video muted loop playsinline preload="none" data-src="./assets/clips/climb_0p160.mp4"></video>
+							<figcaption><b>0.16 m</b><span>6.3″ · over ADA</span></figcaption>
+						</figure>
+						<figure class="demo-clip" data-phase="climb">
+							<video muted loop playsinline preload="none" data-src="./assets/clips/climb_0p175.mp4"></video>
+							<figcaption><b>0.175 m</b><span>7″ · partial</span></figcaption>
+						</figure>
+					</div>
+				</div>
+				<div class="demo-side">
+					<header class="demo-head">
+						<span class="slide-eyebrow">Live demo · real Isaac rollout</span>
+						<h2 class="slide-title">It sees the patient and follows</h2>
+					</header>
+					<figure class="demo-opencv">
+						<video id="opencv-video" muted loop playsinline preload="none" data-src="./assets/clips/opencv_follow.mp4"></video>
+						<figcaption>Target-acquisition HUD · YOLO detection + depth + LiDAR</figcaption>
+					</figure>
+					<div class="demo-explain">
+						<p><b>Nothing here is scripted.</b> This is the live perception stack: <b>YOLO-World</b> locks onto the patient in <b>every frame</b>, <b>depth + LiDAR</b> read the scene, and the learned gait <b>steers to keep pace</b> — all from the dog’s own camera.</p>
+						<p>On the left, the same system carries the oxygen up through <b>rising stair heights</b> — from a gentle <b>0.12 m step</b> past the <b>ADA 6″ limit</b> to where it finally <b>stalls out</b>.</p>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<!-- 4 · PROGRESS & RESULTS — training -->
+		<section id="s-training" class="slide content" aria-label="Training results">
+			<div class="slide-sheet reveal">
+				<div class="slide-visual" data-visual></div>
+				<div class="slide-copy">
+					<span class="slide-eyebrow"></span>
+					<h2 class="slide-title"></h2>
+					<div class="slide-body" data-copy></div>
+				</div>
+			</div>
+		</section>
+
+		<!-- 5 · PROGRESS & RESULTS — height sweep -->
+		<section id="s-sweep" class="slide content" aria-label="Stair-height sweep">
+			<div class="slide-sheet reveal">
+				<div class="slide-visual" data-visual></div>
+				<div class="slide-copy">
+					<span class="slide-eyebrow"></span>
+					<h2 class="slide-title"></h2>
+					<div class="slide-body" data-copy></div>
+				</div>
+			</div>
+		</section>
+
+		<!-- 5b · ENGINEERING CHALLENGES — "what broke → the fix" copy (right) with a
+		     hand-authored three.js topple animation (js/topple.js mounts into
+		     #topple-stage) as the dramatic visual on the left. -->
+		<section id="s-challenges" class="slide content" aria-label="Engineering challenges">
+			<div class="slide-sheet reveal">
+				<div class="slide-visual challenges-visual">
+					<div id="topple-stage">
+						<!-- topple three.js canvas is inserted here by js/topple.js -->
+						<div id="topple-tag">mid-climb, the payload wins · hand-authored in three.js</div>
+						<div id="topple-hud" aria-hidden="true"><span class="topple-hud-dot"></span>fall detected</div>
+						<button type="button" id="topple-replay" aria-label="Replay the fall">
+							<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v4h4" /></svg>
+							<span>replay</span>
+						</button>
+					</div>
+				</div>
+				<div class="slide-copy">
+					<span class="slide-eyebrow"></span>
+					<h2 class="slide-title"></h2>
+					<div class="slide-body" data-copy></div>
+				</div>
+			</div>
+		</section>
+
+		<!-- 6 · REAL-WORLD POTENTIAL — copy (left) + the cinematic 3D viewer
+		     (right), autoplaying. js/main.js mounts its canvas into #canvas-host;
+		     the demo controls it needs live here now (hidden — this is a passive
+		     cinematic view). deck.js turns cinematic + autoplay on for this slide. -->
+		<section id="s-potential" class="slide potential" aria-label="Real-world potential">
+			<div class="pot-sheet reveal">
+				<div class="pot-copy">
+					<span class="slide-eyebrow"></span>
+					<h2 class="slide-title"></h2>
+					<div class="slide-body" data-copy></div>
+				</div>
+				<div class="pot-viewer">
+					<div id="sheet">
+						<div id="canvas-host">
+							<!-- three.js canvas is inserted here by js/main.js -->
+							<div id="ui-overlay">
+								<!-- sim → home storytelling: the whole point of this slide is
+								     "proven sim → the living room", so the cinematic scene carries
+								     a small journey track + a warm home-glow vignette. -->
+								<div id="pot-vignette" aria-hidden="true"></div>
+								<div id="pot-journey" aria-hidden="true">
+									<span class="pj-node pj-done"><span class="pj-dot"></span>Isaac Sim<b>proven ✓</b></span>
+									<span class="pj-arrow"><svg viewBox="0 0 40 12" aria-hidden="true"><path d="M1 6h34m0 0l-5-4m5 4l-5 4"/></svg></span>
+									<span class="pj-node pj-next"><span class="pj-dot"></span>The living room<b>next</b></span>
+								</div>
+								<div id="pot-viewer-cap">the whole system, end-to-end — headed from the sim to the living room</div>
+								<!-- Minimal stage chrome: rewind the unified demo timeline to t=0
+								     (window.__viewer.resetDemo(), also bound to the Home key). Deliberately
+								     OUTSIDE .viewer-controls (that whole bar is display:none on this
+								     passive, autoplaying slide — see the rule below) so a reset stays
+								     reachable without exposing the full scrub UI. -->
+								<button type="button" id="pot-reset" aria-label="Restart demo from the beginning">
+									<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v4h4" /></svg>
+								</button>
+								<div class="viewer-controls" hidden aria-hidden="true">
+									<div id="phase-buttons" role="group" aria-label="Animation phase">
+										<button type="button" class="phase-chip" id="phase-follow" data-phase="follow" aria-pressed="true">phase 1 · follow</button>
+										<button type="button" class="phase-chip" id="phase-climb" data-phase="climb" aria-pressed="false">phase 2 · climb</button>
+									</div>
+									<button type="button" class="chip" id="cinematic-toggle" aria-pressed="false">cinematic · off</button>
+									<button type="button" class="chip" id="tracking-toggle" aria-pressed="false">tracking · off</button>
+									<button type="button" class="chip" id="plumb-toggle" aria-pressed="false">plumb line · off</button>
+									<button type="button" class="chip" id="theme-toggle" aria-pressed="false">light</button>
+									<span id="time-readout">t 00.00 / 00.00 s · follow</span>
+									<button type="button" class="chip" id="play-toggle" aria-pressed="false">play</button>
+									<input type="range" id="scrubber" min="0" max="100" step="0.1" value="0" aria-label="Timeline scrubber" />
+									<div id="model-warning" class="chip warning-chip" hidden>placeholder model — run pipeline/bake_gltf.py</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<!-- 7 · TEAM -->
+		<section id="s-team" class="slide content" aria-label="Team" hidden>
+			<div class="slide-sheet reveal">
+				<div class="slide-visual" data-visual></div>
+				<div class="slide-copy">
+					<span class="slide-eyebrow"></span>
+					<h2 class="slide-title"></h2>
+					<div class="slide-body" data-copy></div>
+				</div>
+			</div>
+		</section>
+
+	</main>
+
+	<script type="module" src="./js/hero.js"></script>
+	<script type="module" src="./js/main.js"></script>
+	<script type="module" src="./js/topple.js"></script>
+	<script type="module" src="./js/deck.js"></script>
+	<script type="module" src="./js/democlips.js"></script>
+</body>
+</html>
